@@ -1,0 +1,9 @@
+# Never commit malware samples
+*.exe
+*.dll
+*.bin
+*.zip
+*.vir
+*.sample
+samples/
+.DS_Store
