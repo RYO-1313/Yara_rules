@@ -1,39 +1,17 @@
-# [Malware Family Name]
+# Family Name
 
-> One-sentence summary of the threat and what this rule detects.
+**What it is:** One or two sentences on the malware.
 
-## Threat Overview
+**What the rule looks for:** The strings or traits it matches, and why you picked them.
 
-[TODO: 2–3 sentences on what the malware does, how it spreads, and why it matters.]
+**Tested on:** SHA256 hashes of the samples you ran it against. Add a clean file too, to check for false positives.
 
-## MITRE ATT&CK Mapping
+**Limits:** What it misses, or what could trigger it by mistake.
 
-| Technique | Name | Relevance |
-|-----------|------|-----------|
-| `TXXXX` | [Technique name] | [Why it applies] |
+**Sources:** Links to the reports you used.
 
-## Detection Approach
-
-[TODO: Explain the indicators the rule uses (strings, byte patterns, PE traits, imports) and why they were chosen.]
-
-## Testing
-
-| Sample (SHA256) | Source | Expected | Result |
-|-----------------|--------|----------|--------|
-| `[hash]` | [MalwareBazaar / VirusTotal / etc.] | Match | [TODO] |
-
-> No live samples are stored in this repository. Reference hashes only.
-
-## Usage
+**Run it:**
 
 ```bash
 yara -s rule_name.yar /path/to/sample
 ```
-
-## Limitations and False Positives
-
-- [TODO: known variants missed, benign files that might match]
-
-## References
-
-- [TODO: report or analysis URL]

@@ -1,17 +1,18 @@
-rule Family_Name_Variant
+rule Family_Name
 {
     meta:
-        description  = "Detects <what it detects>"
-        author       = "RYO-1313"
+        description  = "What this rule detects"
+        author       = "Your name"
         date         = "YYYY-MM-DD"
-        reference    = "<report or analysis URL>"
-        hash         = "<SHA256 of reference sample>"
-        mitre_attack = "TXXXX"
-        version      = "1.0"
+        reference    = "Link to a report or analysis"
+        hash         = "SHA256 of a sample you tested on"
+        mitre_attack = "T1486"
 
     strings:
-        $s1 = "example string"
+        $a = "a string from the sample"
+        $b = "another string from the sample"
 
     condition:
-        uint16(0) == 0x5A4D and any of them
+        // MZ header (a Windows executable) and at least 2 of the strings
+        uint16(0) == 0x5A4D and 2 of them
 }
