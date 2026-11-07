@@ -16,22 +16,22 @@ The mapping below comes from public reporting on WannaCry, not from dynamic anal
 | `T1210` | Exploitation of Remote Services | Worm propagation through the SMBv1 EternalBlue vulnerability |
 | `T1543.003` | Create or Modify System Process: Windows Service | Public reports describe the dropper installing itself as a service (service name `mssecsvc2.0`) |
 | `T1490` | Inhibit System Recovery | Public reports describe deletion of shadow copies and backups |
-| `T1105` | Ingress Tool Transfer | The dropper writes and launches an embedded payload (`tasksche.exe`); both samples import `WriteFile` and `CreateProcessA` |
+| `T1105` | Ingress Tool Transfer | The dropper writes and launches an embedded payload (`tasksche.exe`); the first two samples analyzed import `WriteFile` and `CreateProcessA` |
 
 ## Detection Approach
 
 The rule is string-based and applies to PE files only (`uint16(0) == 0x5A4D`, the "MZ" header at offset 0). Strings are split by strength:
 
-**Strong indicators :**
-- `$kill_switch`: the nonsense domain WannaCry checks before running, per public reports. Neither tested sample contained it, so it is currently untested against a real match.
-- `$marker` (`WANACRY!`): a marker string found in the EXE sample.
-- `$name` (`WanaCrypt0r`): the malware's name, stored as UTF-16 in the EXE sample, so it is searched as `ascii wide`.
+**Strong indicators (any one is sufficient):**
+- `$kill_switch`: the nonsense domain WannaCry checks before running, per public reports. Found as plain ASCII in 2 of the 6 tested samples (one EXE, one DLL).
+- `$marker` (`WANACRY!`): a marker string found in 4 of the 6 samples.
+- `$name` (`WanaCrypt0r`): the malware's name, found in the same 4 samples. It is stored as UTF-16, so it is searched as `ascii wide`.
 
 **Weak indicators (must appear together):**
 - `$dropped` (`tasksche.exe`): the dropped component's filename. It looks like a legitimate Windows name, so it is never used alone.
-- `$export` (`PlayGame`): an unusual export name present in both the DLL and the EXE samples. It is also an ordinary English phrase, so it is never used alone.
+- `$export` (`PlayGame`): an unusual export name present in all 6 samples. It is also an ordinary English phrase, so it is never used alone.
 
-**Excluded on purpose:** `WriteFile` and `CreateProcessA`. Both samples import them, but they are extremely common in legitimate software and carry almost no detection value.
+**Excluded on purpose:** `WriteFile` and `CreateProcessA`. The first two samples analyzed import them, but they are extremely common in legitimate software and carry almost no detection value.
 
 **Condition:**
 
@@ -40,18 +40,23 @@ uint16(0) == 0x5A4D and
 ( $kill_switch or $marker or $name or ( $dropped and $export ) )
 ```
 
-The combined clause (`$dropped and $export`) exists so that the DLL, which carries none of the strong strings, is still detected without letting a filename alone trigger the rule.
+The combined clause (`$dropped and $export`) exists so that samples carrying none of the strong strings are still detected without letting a filename alone trigger the rule. Two of the six samples (one EXE and one DLL) matched only through this clause.
 
 ## Testing
 
+All six WannaCry samples were scanned with `yara64.exe -s Wanacry.yar <file>`.
+
 | Sample (SHA256) | Source | Expected | Result |
 |-----------------|--------|----------|--------|
+| `14e1dd3f1ab9b60277b0f5ea15ce926ffb9bfd5b2dcfb0186729f6f487c33348` (EXE) | MalwareBazaar | Match | Match (combined clause): `$dropped`, `$export` |
 | `43fe9dde201aa613382486afacd94af75cd45de3ee1aaa2a49442e850acd9da9` (EXE) | MalwareBazaar | Match | Match: `$marker`, `$name`, `$dropped` (x2), `$export` |
-| `4436f92229f527236c0847564351ef5147b2458a120f3402b0dd1b58a6a84f0a` (DLL) | MalwareBazaar | Match | Match: `$dropped`, `$export` (combined clause) |
+| `930ba0ab96e5cfd4c3dc3cab78a3fa5514acd88c0ddcf32e73af7c2c31bd335c` (EXE) | MalwareBazaar | Match | Match: `$kill_switch`, `$marker`, `$name`, `$dropped` (x2), `$export` |
+| `dbdf262ca964e3115e1e07a0d5bbc12e8aafe17f71ce0621b9ba6b15aeb9777d` (EXE) | MalwareBazaar | Match | Match: `$marker`, `$name`, `$dropped` (x2), `$export` |
+| `4436f92229f527236c0847564351ef5147b2458a120f3402b0dd1b58a6a84f0a` (DLL) | MalwareBazaar | Match | Match (combined clause): `$dropped`, `$export` |
+| `f45ed649c6b28cc6957d36fd448ae4d9c5eaa4b3c06a2532bc50eed035869f3f` (DLL) | MalwareBazaar | Match | Match: `$kill_switch`, `$marker`, `$name`, `$dropped` (x2), `$export` |
 | Clean files in `C:\Windows\System32` | Local Windows install | No match | No match (registry hives and other locked files could not be opened and were not scanned) |
-| AsyncRAT sample (negative control) | MalwareBazaar | No match | [TODO: not yet run] |
-| Third WannaCry sample | MalwareBazaar | Match | [TODO: hash and result not recorded] |
-| Clean files in `C:\Program Files` | Local Windows install | No match | [TODO: not yet run with this version of the rule] |
+
+Result: 6 of 6 WannaCry samples matched.
 
 > No live samples are stored in this repository. Reference hashes only.
 
@@ -77,10 +82,10 @@ yara64.exe -r Wanacry.yar C:\path\to\folder
 
 ## Limitations and False Positives
 
-- **Very small test set.** The rule was built and validated on two samples, so it shows consistency on those files, not coverage of the family.
-- **Kill-switch string untested.** It was not present in either sample, so its encoding and exact form have not been confirmed by a real match.
-- **DLL detection is weak.** It relies on a filename plus a common English word. Other software or other malware could contain both strings.
-- **`PlayGame` appears at three offsets per sample.** An export name should appear once in the export table, so the other hits are unexplained. The string's stability across builds has not been confirmed.
+- **Small test set.** The rule was built and validated on six samples (four EXEs, two DLLs), all of which matched. This shows consistency on those files, not coverage of the family or resistance to false positives.
+- **Two of six samples rely on the weak clause.** Their detection rests on a filename plus a common English word, which other software or other malware could also contain.
+- **Kill-switch string only partly validated.** It matched in 2 of 6 samples, so it is confirmed as a working string, but four samples do not contain it in plain form.
+- **`PlayGame` appears at three offsets per sample.** An export name should appear once in the export table, so the other hits are unexplained. The offsets repeat across samples of the same type (the same three in the EXEs, the same three in the DLLs), which suggests shared code or data, but this has not been investigated.
 - **Variants and repacked builds may be missed.** Samples that are packed, modified, or that keep these strings only inside an encrypted or compressed resource will not match, because the rule inspects static bytes only.
 - **Possible false positives:** security tools, analysis reports, or sandbox artifacts that contain the marker strings; any software that references `tasksche.exe` together with `PlayGame`.
 - **Not run against a large clean corpus.** Only `C:\Windows\System32` has been tested so far.
